@@ -103,7 +103,7 @@ jobs:
           if [ -n "$CC" ]; then
             args="$args CC=$CC"
           fi
-          echo "args=$args" >> $GITHUB_OUTPUT
+          echo "args=$args KCFLAGS=-Wno-strict-prototypes" >> $GITHUB_OUTPUT
       - name: "😋 Update SukiSU Ultra (non-GKI)"
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
         if: ${{ env.withKernelSU == 'true' }}
@@ -114,7 +114,7 @@ jobs:
           if [ -d "./drivers/kernelsu" ]; then
             rm -rf "./drivers/kernelsu"
           fi
-          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s nongki
+          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash
           echo -e "\nCONFIG_KSU=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
           echo -e "\nCONFIG_KSU_MANUAL_HOOK=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
           echo -e "\nCONFIG_KPROBES=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
@@ -122,6 +122,8 @@ jobs:
           echo -e "\nCONFIG_KPROBE_EVENTS=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
           echo -e "\nCONFIG_KALLSYMS=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
           echo -e "\nCONFIG_KALLSYMS_ALL=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
+          # Fix SukiSU old C code for new clang
+          echo -e "\nCONFIG_CC_HAS_WARN_MAYBE_UNINITIALIZED=n" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
           cat ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
       - name: "👍 Make defconfig"
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
