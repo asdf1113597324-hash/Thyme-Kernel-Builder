@@ -116,7 +116,9 @@ jobs:
           fi
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash
           # Suppress clang errors for old K&R C in SukiSU driver
-          sed -i '1i subdir-ccflags-y := -Wno-strict-prototypes -Wno-deprecated-non-prototype -Wno-implicit-function-declaration -Wno-implicit-int' drivers/kernelsu/Makefile
+          # Patch SukiSU Kbuild (kernel uses Kbuild first, not Makefile!)
+          [ -f drivers/kernelsu/Kbuild ] && sed -i '1i subdir-ccflags-y := -Wno-strict-prototypes -Wno-deprecated-non-prototype -Wno-implicit-function-declaration -Wno-implicit-int' drivers/kernelsu/Kbuild
+          [ -f drivers/kernelsu/core/Makefile ] && sed -i '1i ccflags-y := -Wno-strict-prototypes -Wno-deprecated-non-prototype -Wno-implicit-function-declaration -Wno-implicit-int' drivers/kernelsu/core/Makefile
           echo -e "\nCONFIG_KSU=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
           echo -e "\nCONFIG_KSU_MANUAL_HOOK=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
           echo -e "\nCONFIG_KPROBES=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
