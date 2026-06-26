@@ -117,10 +117,13 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash
           # Patch SukiSU Kbuild — suppress clang errors for old K&R C code
           # NOTE: '-Wno-deprecated-non-prototype' removed (not supported by clang 11)
-          # clang 11 safe subset: -Wno-strict-prototypes -Wno-implicit-function-declaration
-          # -Wno-implicit-int and -Wno-deprecated-non-prototype exist only in clang 15+
+          # clang 11 safe subset
           [ -f drivers/kernelsu/Kbuild ] && sed -i '1i subdir-ccflags-y := -Wno-strict-prototypes -Wno-implicit-function-declaration' drivers/kernelsu/Kbuild
           [ -f drivers/kernelsu/core/Makefile ] && sed -i '1i ccflags-y := -Wno-strict-prototypes -Wno-implicit-function-declaration' drivers/kernelsu/core/Makefile
+          # Fix: MODULE_IMPORT_NS(VFS_...) K&R macro expansion breaks on clang + kernel 4.19
+          sed -i 's/^MODULE_IMPORT_NS(VFS_internal/\/\/ MODULE_IMPORT_NS(VFS_internal/' drivers/kernelsu/core/init.c
+          # Fix: same pattern may also appear with different identifier
+          sed -i 's/^MODULE_IMPORT_NS(MINIXFS3/\/\/ MODULE_IMPORT_NS(MINIXFS3/' drivers/kernelsu/core/init.c
           # Kernel config: SukiSU + skip dtbo.img (missing mkdtimg tool on Ubuntu 24.04)
           echo -e "\nCONFIG_KSU=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
           echo -e "CONFIG_KSU_MANUAL_HOOK=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
