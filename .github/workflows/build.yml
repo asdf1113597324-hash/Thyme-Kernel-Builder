@@ -103,7 +103,7 @@ jobs:
           if [ -n "$CC" ]; then
             args="$args CC=$CC"
           fi
-          echo "args=$args KCFLAGS=-Wno-strict-prototypes" >> $GITHUB_OUTPUT
+          echo "args=$args" >> $GITHUB_OUTPUT
       - name: "😋 Update SukiSU Ultra (non-GKI)"
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
         if: ${{ env.withKernelSU == 'true' }}
@@ -129,6 +129,7 @@ jobs:
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
         env:
           args: ${{ steps.generate-args.outputs.args }}
+          KCFLAGS: -Wno-strict-prototypes -Wno-implicit-int
         run: |
           echo "PATH Variable: $PATH"
           make ${{ env.args }} ${{ env.DEFCONFIG_NAME }}
@@ -136,6 +137,7 @@ jobs:
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
         env:
           args: ${{ steps.generate-args.outputs.args }}
+          KCFLAGS: -Wno-strict-prototypes -Wno-implicit-int
         run: |
           echo "PATH Variable: $PATH"
           make ${args}
