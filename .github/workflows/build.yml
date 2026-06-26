@@ -43,7 +43,7 @@ jobs:
       - name: "⭐ Install prerequisites"
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential bc curl git zip ftp gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi libssl-dev lftp zstd wget libfl-dev python3 libarchive-tools
+          sudo apt-get install -y build-essential bc cpio curl git zip ftp gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi libssl-dev lftp zstd wget libfl-dev python3 libarchive-tools lz4 xz-utils device-tree-compiler
       - name: "🌟 Clone kernel source => (${{ env.kernelRepo }})"
         working-directory: ./${{ env.kernelDir }}
         run: |
@@ -103,7 +103,7 @@ jobs:
           if [ -n "$CC" ]; then
             args="$args CC=$CC"
           fi
-          echo "args=$args" >> $GITHUB_OUTPUT
+          echo "args=$args LLVM_IAS=0" >> $GITHUB_OUTPUT
       - name: "😋 Update SukiSU Ultra (non-GKI)"
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
         if: ${{ env.withKernelSU == 'true' }}
@@ -115,25 +115,27 @@ jobs:
             rm -rf "./drivers/kernelsu"
           fi
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash
-          # Suppress clang errors for old K&R C in SukiSU driver
-          # Patch SukiSU Kbuild (kernel uses Kbuild first, not Makefile!)
-          [ -f drivers/kernelsu/Kbuild ] && sed -i '1i subdir-ccflags-y := -Wno-strict-prototypes -Wno-deprecated-non-prototype -Wno-implicit-function-declaration -Wno-implicit-int' drivers/kernelsu/Kbuild
-          [ -f drivers/kernelsu/core/Makefile ] && sed -i '1i ccflags-y := -Wno-strict-prototypes -Wno-deprecated-non-prototype -Wno-implicit-function-declaration -Wno-implicit-int' drivers/kernelsu/core/Makefile
+          # Patch SukiSU Kbuild — suppress clang errors for old K&R C code
+          # NOTE: '-Wno-deprecated-non-prototype' removed (not supported by clang 11)
+          # clang 11 safe subset: -Wno-strict-prototypes -Wno-implicit-function-declaration
+          # -Wno-implicit-int and -Wno-deprecated-non-prototype exist only in clang 15+
+          [ -f drivers/kernelsu/Kbuild ] && sed -i '1i subdir-ccflags-y := -Wno-strict-prototypes -Wno-implicit-function-declaration' drivers/kernelsu/Kbuild
+          [ -f drivers/kernelsu/core/Makefile ] && sed -i '1i ccflags-y := -Wno-strict-prototypes -Wno-implicit-function-declaration' drivers/kernelsu/core/Makefile
+          # Kernel config: SukiSU + skip dtbo.img (missing mkdtimg tool on Ubuntu 24.04)
           echo -e "\nCONFIG_KSU=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
-          echo -e "\nCONFIG_KSU_MANUAL_HOOK=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
-          echo -e "\nCONFIG_KPROBES=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
-          echo -e "\nCONFIG_HAVE_KPROBES=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
-          echo -e "\nCONFIG_KPROBE_EVENTS=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
-          echo -e "\nCONFIG_KALLSYMS=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
-          echo -e "\nCONFIG_KALLSYMS_ALL=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
-          # Fix SukiSU old C code for new clang
-          echo -e "\nCONFIG_CC_HAS_WARN_MAYBE_UNINITIALIZED=n" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
+          echo -e "CONFIG_KSU_MANUAL_HOOK=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
+          echo -e "CONFIG_KPROBES=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
+          echo -e "CONFIG_HAVE_KPROBES=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
+          echo -e "CONFIG_KPROBE_EVENTS=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
+          echo -e "CONFIG_KALLSYMS=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
+          echo -e "CONFIG_KALLSYMS_ALL=y" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
+          echo -e "CONFIG_BUILD_ARM64_DT_OVERLAY=n" >> ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
           cat ./arch/${{ env.ARCH }}/configs/${{ env.DEFCONFIG_NAME }}
       - name: "👍 Make defconfig"
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
         env:
           args: ${{ steps.generate-args.outputs.args }}
-          KCFLAGS: -Wno-strict-prototypes -Wno-implicit-int
+          KCFLAGS: -Wno-strict-prototypes
         run: |
           echo "PATH Variable: $PATH"
           make ${{ env.args }} ${{ env.DEFCONFIG_NAME }}
@@ -141,7 +143,7 @@ jobs:
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
         env:
           args: ${{ steps.generate-args.outputs.args }}
-          KCFLAGS: -Wno-strict-prototypes -Wno-implicit-int
+          KCFLAGS: -Wno-strict-prototypes
         run: |
           echo "PATH Variable: $PATH"
           make ${args}
